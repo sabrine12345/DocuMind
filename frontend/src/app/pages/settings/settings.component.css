@@ -1,0 +1,43 @@
+:host {
+  display: block;
+}
+
+.settings-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.settings-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  background: #fbfcfe;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px;
+  font-size: 11px;
+}
+
+.settings-meta div {
+  display: grid;
+  gap: 3px;
+}
+
+.members-add {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  background: #fbfcfe;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.panel .field + .field {
+  margin-top: 10px;
+}

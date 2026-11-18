@@ -1,0 +1,48 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">◇</span><span>DOCUMIND</span></div>
+    <nav>
+      <a
+        *ngFor="let item of navItems"
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        [style.display]="item.visible ? 'flex' : 'none'"
+      >
+        <span class="nav-icon"><lucide-icon [name]="item.icon" [size]="17"></lucide-icon></span>
+        <span class="nav-text">{{ item.label }}</span>
+      </a>
+    </nav>
+    <div class="profile" (click)="logout()" title="Sign out">
+      <div class="avatar">{{ initialsValue() }}</div>
+      <div>
+        <strong>{{ displayName() }}</strong>
+        <small>{{ roleLabel() || 'Member' }}</small>
+      </div>
+      <span style="margin-left:auto;color:#9eb0cf">
+        <lucide-icon name="log-out" [size]="15"></lucide-icon>
+      </span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>{{ pageTitle() }}</h1>
+        <p>Welcome back, {{ displayName() }}</p>
+      </div>
+      <div class="top-actions">
+        <label class="workspace-picker" *ngIf="workspaces().length">
+          <lucide-icon name="building-2" [size]="15"></lucide-icon>
+          <select class="select input-sm" [value]="activeWorkspace()?.id ?? ''" (change)="switchWorkspace($event)">
+            <option *ngFor="let workspace of workspaces()" [value]="workspace.id">{{ workspace.name }}</option>
+          </select>
+        </label>
+        <span class="badge tone-blue plain">{{ activeWorkspace()?.role || user()?.globalRole }}</span>
+      </div>
+    </header>
+
+    <div class="content">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>

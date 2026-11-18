@@ -1,0 +1,206 @@
+<div class="content-grid">
+  <article class="panel">
+    <div class="panel-title">
+      Validation queue
+      <span class="chip">{{ page()?.totalElements ?? 0 }} requests</span>
+    </div>
+
+    <div class="toolbar" style="margin-bottom: 12px; justify-content: space-between">
+      <div class="toolbar" style="margin: 0">
+        <select class="select" [value]="status() ?? ''" (change)="onStatusChange($event)">
+          <option value="">All statuses</option>
+          <option value="PENDING">Pending</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+        <span class="muted">Pending requests refresh automatically every 10 seconds.</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" type="button" (click)="reload()" [disabled]="loading()">
+        <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+        {{ loading() ? 'Loading...' : 'Refresh' }}
+      </button>
+    </div>
+
+    <div class="error-text" *ngIf="error()">{{ error() }}</div>
+
+    <div class="table-scroll">
+      <table class="table" *ngIf="page()?.content?.length; else emptyValidations">
+        <thead>
+          <tr>
+            <th>Document</th>
+            <th>Version</th>
+            <th>Submitted</th>
+            <th>Status</th>
+            <th>Decision</th>
+            <th>Comments</th>
+            <th style="text-align: right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let validation of page()?.content">
+            <td>
+              <a [routerLink]="['/documents', validation.documentId]" class="cell-title">{{ validation.fileName }}</a>
+              <div class="cell-sub">{{ label(validation.category) }}</div>
+            </td>
+            <td><span class="badge tone-blue plain">v{{ validation.documentVersion }}</span></td>
+            <td>
+              <div>{{ validation.submittedByName }}</div>
+              <div class="cell-sub">{{ validation.submittedAt | date: 'short' }}</div>
+            </td>
+            <td><span class="badge" [ngClass]="statusTone(validation.status)">{{ label(validation.status) }}</span></td>
+            <td>
+              <div>{{ validation.decidedByName || '-' }}</div>
+              <div class="cell-sub" *ngIf="validation.decidedAt">{{ validation.decidedAt | date: 'short' }}</div>
+            </td>
+            <td>{{ validation.commentCount }}</td>
+            <td>
+              <div class="actions">
+                <button class="btn btn-ghost btn-sm" type="button" (click)="openReview(validation)">
+                  <lucide-icon name="eye" [size]="13"></lucide-icon> Review
+                </button>
+                <a class="btn-icon" [routerLink]="['/documents', validation.documentId]" title="Open document">
+                  <lucide-icon name="file-text" [size]="15"></lucide-icon>
+                </a>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #emptyValidations>
+        <div class="empty-state" *ngIf="!loading()">
+          <strong>No validation request found</strong>
+          Submit a processed document for validation from its detail page.
+        </div>
+      </ng-template>
+    </div>
+
+    <div class="pagination" *ngIf="page() as p">
+      <span class="muted">{{ p.totalElements }} requests · page {{ p.page + 1 }} / {{ p.totalPages || 1 }}</span>
+      <div class="page-controls">
+        <select class="select input-sm" [value]="pageSize()" (change)="onPageSizeChange($event)">
+          <option value="10">10 / page</option>
+          <option value="20">20 / page</option>
+          <option value="50">50 / page</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="p.first" (click)="goToPage(p.page - 1)">
+          <lucide-icon name="chevron-left" [size]="14"></lucide-icon> Previous
+        </button>
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="p.last" (click)="goToPage(p.page + 1)">
+          Next <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
+        </button>
+      </div>
+    </div>
+  </article>
+</div>
+
+<!-- Review modal -->
+<div class="modal-backdrop" *ngIf="detail() as d" (click)="closeReview()">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <h3>Validation review</h3>
+        <div class="cell-sub">{{ d.validation.fileName }} · v{{ d.validation.documentVersion }}</div>
+      </div>
+      <button class="btn-icon" type="button" (click)="closeReview()"><lucide-icon name="x" [size]="16"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <div class="review-grid">
+        <div>
+          <div class="review-label">Status</div>
+          <span class="badge" [ngClass]="statusTone(d.validation.status)">{{ label(d.validation.status) }}</span>
+        </div>
+        <div>
+          <div class="review-label">Category</div>
+          <div>{{ label(d.validation.category) }}</div>
+        </div>
+        <div>
+          <div class="review-label">Submitted by</div>
+          <div>{{ d.validation.submittedByName }}</div>
+          <div class="cell-sub">{{ d.validation.submittedAt | date: 'short' }}</div>
+        </div>
+        <div>
+          <div class="review-label">Decided by</div>
+          <div>{{ d.validation.decidedByName || '-' }}</div>
+          <div class="cell-sub" *ngIf="d.validation.decidedAt">{{ d.validation.decidedAt | date: 'short' }}</div>
+        </div>
+        <div>
+          <div class="review-label">Decision comment</div>
+          <div>{{ d.validation.decisionComment || '-' }}</div>
+        </div>
+        <div>
+          <div class="review-label">Document</div>
+          <a [routerLink]="['/documents', d.validation.documentId]" (click)="closeReview()">Open document detail</a>
+        </div>
+      </div>
+
+      <div class="review-actions" *ngIf="d.validation.status === 'PENDING' && auth.canValidate()">
+        <button class="btn btn-success btn-sm" type="button" (click)="openDecision('approve')">
+          <lucide-icon name="check" [size]="14"></lucide-icon> Approve
+        </button>
+        <button class="btn btn-danger btn-sm" type="button" (click)="openDecision('reject')">
+          <lucide-icon name="x" [size]="14"></lucide-icon> Reject
+        </button>
+        <span class="muted" *ngIf="!auth.canValidate()">Only validators, managers and admins can decide.</span>
+      </div>
+
+      <div class="decision-box" *ngIf="decision() as kind">
+        <div class="panel-title" style="margin-bottom: 8px">
+          {{ kind === 'approve' ? 'Approve this document' : 'Reject this document' }}
+          <button class="btn-icon" type="button" (click)="decision.set(null)"><lucide-icon name="x" [size]="14"></lucide-icon></button>
+        </div>
+        <div class="field">
+          <label for="decisionComment">Comment <span class="muted" *ngIf="kind === 'approve'">(optional)</span></label>
+          <textarea id="decisionComment" class="textarea" [value]="decisionComment()" (input)="decisionComment.set($any($event.target).value)"
+            [placeholder]="kind === 'reject' ? 'A reason is required to reject' : 'Optional approval note'" maxlength="2000"></textarea>
+        </div>
+        <div class="panel-actions" style="justify-content: flex-end">
+          <button class="btn btn-ghost btn-sm" type="button" (click)="decision.set(null)">Cancel</button>
+          <button class="btn btn-sm" [class.btn-success]="kind === 'approve'" [class.btn-danger]="kind === 'reject'"
+            type="button" [disabled]="deciding()" (click)="confirmDecision()">
+            {{ deciding() ? 'Saving...' : (kind === 'approve' ? 'Confirm approval' : 'Confirm rejection') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="panel-title" style="margin-bottom: 8px">
+        Comments
+        <span class="chip">{{ d.comments.length }}</span>
+      </div>
+
+      <div class="comment-list" *ngIf="d.comments.length; else noComments">
+        <div class="comment" *ngFor="let comment of d.comments">
+          <div class="avatar">{{ initials(comment.authorName) }}</div>
+          <div>
+            <div class="comment-head">
+              <strong>{{ comment.authorName }}</strong>
+              <span class="muted">{{ comment.createdAt | date: 'short' }}</span>
+            </div>
+            <p>{{ comment.message }}</p>
+          </div>
+        </div>
+      </div>
+      <ng-template #noComments><div class="empty-state" style="padding: 16px">No comment yet.</div></ng-template>
+
+      <div class="comment-form" *ngIf="auth.canUploadDocuments()">
+        <div class="field" style="flex: 1">
+          <label for="newComment">Add a comment</label>
+          <textarea id="newComment" class="textarea" [value]="commentDraft()" (input)="commentDraft.set($any($event.target).value)"
+            placeholder="Share context with the validator..." maxlength="2000"></textarea>
+        </div>
+        <button class="btn btn-primary btn-sm" type="button" [disabled]="postingComment() || !commentDraft().trim()" (click)="addComment()">
+          <lucide-icon name="message-square" [size]="14"></lucide-icon>
+          {{ postingComment() ? 'Posting...' : 'Post comment' }}
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" (click)="closeReview()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="empty-state" *ngIf="detailLoading()">Loading validation request...</div>
+
+<div class="toast success" *ngIf="notice()" (click)="notice.set('')">{{ notice() }} <b style="margin-left: auto">×</b></div>

@@ -1,0 +1,17 @@
+# Local development: file based H2 database, local storage and in-process worker.
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/documind-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+# No broker is required in local mode, so do not report RabbitMQ as down.
+management:
+  health:
+    rabbit:
+      enabled: false
+
+logging:
+  level:
+    com.documind: DEBUG

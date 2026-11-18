@@ -1,0 +1,101 @@
+<div class="content-grid">
+  <article class="panel">
+    <div class="panel-title">
+      Processing queue
+      <span class="chip">{{ page()?.totalElements ?? 0 }} jobs</span>
+    </div>
+
+    <div class="toolbar" style="margin-bottom: 12px; justify-content: space-between">
+      <div class="toolbar" style="margin: 0">
+        <select class="select" [value]="status() ?? ''" (change)="onStatusChange($event)">
+          <option value="">All statuses</option>
+          <option value="QUEUED">Queued</option>
+          <option value="PROCESSING">Processing</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="FAILED">Failed</option>
+        </select>
+        <span class="muted">Live view: queued and processing jobs refresh automatically every 4 seconds.</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" type="button" (click)="reload()" [disabled]="loading()">
+        <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+        {{ loading() ? 'Loading...' : 'Refresh' }}
+      </button>
+    </div>
+
+    <div class="error-text" *ngIf="error()">{{ error() }}</div>
+
+    <div class="table-scroll">
+      <table class="table" *ngIf="page()?.content?.length; else emptyJobs">
+        <thead>
+          <tr>
+            <th>Document</th>
+            <th>Status</th>
+            <th style="min-width: 140px">Progress</th>
+            <th>Attempt</th>
+            <th>Worker</th>
+            <th>Started</th>
+            <th>Finished</th>
+            <th style="text-align: right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let job of page()?.content">
+            <td>
+              <a [routerLink]="['/documents', job.documentId]" class="cell-title">{{ job.fileName }}</a>
+              <div class="cell-sub">{{ label(job.category) }} · queued {{ job.createdAt | date: 'short' }}</div>
+              <div class="cell-sub" *ngIf="job.errorMessage">{{ job.errorMessage }}</div>
+            </td>
+            <td><span class="badge" [ngClass]="statusTone(job.status)">{{ label(job.status) }}</span></td>
+            <td>
+              <div class="progress" style="height: 8px"><i [style.width.%]="job.progress"></i></div>
+              <div class="cell-sub">{{ job.progress }}%</div>
+            </td>
+            <td>{{ job.attempt }}</td>
+            <td>{{ job.worker || '-' }}</td>
+            <td>{{ job.startedAt ? (job.startedAt | date: 'short') : '-' }}</td>
+            <td>{{ job.finishedAt ? (job.finishedAt | date: 'short') : '-' }}</td>
+            <td>
+              <div class="actions">
+                <a class="btn-icon" [routerLink]="['/documents', job.documentId]" title="Open document">
+                  <lucide-icon name="eye" [size]="15"></lucide-icon>
+                </a>
+                <button class="btn btn-ghost btn-sm" type="button" *ngIf="job.status === 'FAILED' && auth.canUploadDocuments()"
+                  [disabled]="retrying() === job.id" (click)="retry(job)">
+                  <lucide-icon name="refresh-cw" [size]="13"></lucide-icon>
+                  {{ retrying() === job.id ? 'Retrying...' : 'Retry' }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #emptyJobs>
+        <div class="empty-state" *ngIf="!loading()">
+          <strong>No processing jobs found</strong>
+          Jobs appear as soon as a document is uploaded. Adjust the status filter to see older jobs.
+        </div>
+      </ng-template>
+    </div>
+
+    <div class="pagination" *ngIf="page() as p">
+      <span class="muted">{{ p.totalElements }} jobs · page {{ p.page + 1 }} / {{ p.totalPages || 1 }}</span>
+      <div class="page-controls">
+        <select class="select input-sm" [value]="pageSize()" (change)="onPageSizeChange($event)">
+          <option value="10">10 / page</option>
+          <option value="20">20 / page</option>
+          <option value="50">50 / page</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="p.first" (click)="goToPage(p.page - 1)">
+          <lucide-icon name="chevron-left" [size]="14"></lucide-icon>
+          Previous
+        </button>
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="p.last" (click)="goToPage(p.page + 1)">
+          Next
+          <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
+        </button>
+      </div>
+    </div>
+  </article>
+</div>
+
+<div class="toast success" *ngIf="notice()" (click)="notice.set('')">{{ notice() }} <b style="margin-left: auto">×</b></div>

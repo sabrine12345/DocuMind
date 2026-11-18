@@ -1,0 +1,52 @@
+<div class="auth-page">
+  <aside class="auth-brand">
+    <div class="brand"><span class="brand-mark">◇</span><span>DOCUMIND</span></div>
+    <div>
+      <h1>Document intelligence,<br />ready for your teams.</h1>
+      <p>
+        Upload, store, process and validate business documents in one secure workspace.
+        Structured extraction is prepared from your templates and reviewed by your team.
+      </p>
+      <div class="auth-features">
+        <div class="auth-feature"><span>✓</span> Secure workspace isolation and role based access</div>
+        <div class="auth-feature"><span>✓</span> Processing pipeline with retries and full audit trail</div>
+        <div class="auth-feature"><span>✓</span> Human validation workflow with comments and history</div>
+      </div>
+    </div>
+    <div class="auth-footer-note">AI chat and automated extraction are coming next. No artificial data is ever shown.</div>
+  </aside>
+
+  <section class="auth-form-side">
+    <div class="auth-card">
+      <h2>Sign in</h2>
+      <p class="subtitle">Access your DocuMind workspace.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" class="input" type="email" autocomplete="email" formControlName="email" placeholder="you@company.com" />
+          <span class="error-text" *ngIf="form.controls.email.touched && form.controls.email.invalid">
+            A valid email address is required.
+          </span>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" class="input" type="password" autocomplete="current-password" formControlName="password" placeholder="••••••••" />
+          <span class="error-text" *ngIf="form.controls.password.touched && form.controls.password.invalid">
+            The password is required.
+          </span>
+        </div>
+
+        <div class="error-text" *ngIf="error()">{{ error() }}</div>
+
+        <button class="btn btn-primary btn-block" type="submit" [disabled]="loading()" style="margin-top: 8px">
+          {{ loading() ? 'Signing in...' : 'Sign in' }}
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        No account yet? <a routerLink="/register">Create a workspace</a>
+      </div>
+    </div>
+  </section>
+</div>

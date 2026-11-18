@@ -1,0 +1,80 @@
+<div class="auth-page">
+  <aside class="auth-brand">
+    <div class="brand"><span class="brand-mark">◇</span><span>DOCUMIND</span></div>
+    <div>
+      <h1>Create your workspace<br />in a minute.</h1>
+      <p>
+        Your workspace keeps documents, templates, processing jobs and validations
+        isolated from other tenants. You become its administrator.
+      </p>
+      <div class="auth-features">
+        <div class="auth-feature"><span>✓</span> Flyway managed database and secure object storage</div>
+        <div class="auth-feature"><span>✓</span> JWT authentication with rotating refresh tokens</div>
+        <div class="auth-feature"><span>✓</span> Audit trail on every sensitive operation</div>
+      </div>
+    </div>
+    <div class="auth-footer-note">DocuMind platform · No AI data is generated without explicit integration.</div>
+  </aside>
+
+  <section class="auth-form-side">
+    <div class="auth-card">
+      <h2>Create an account</h2>
+      <p class="subtitle">Start with a new workspace owned by you.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <div class="field">
+          <label for="fullName">Full name</label>
+          <input id="fullName" class="input" type="text" formControlName="fullName" placeholder="Jane Doe" autocomplete="name" />
+          <span class="error-text" *ngIf="form.controls.fullName.touched && form.controls.fullName.invalid">
+            The full name is required (120 characters max).
+          </span>
+        </div>
+
+        <div class="field">
+          <label for="email">Work email</label>
+          <input id="email" class="input" type="email" formControlName="email" placeholder="you@company.com" autocomplete="email" />
+          <span class="error-text" *ngIf="form.controls.email.touched && form.controls.email.invalid">
+            A valid email address is required.
+          </span>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label for="workspaceName">Workspace name <span class="muted">(optional)</span></label>
+            <input id="workspaceName" class="input" type="text" formControlName="workspaceName" placeholder="Acme Finance" />
+          </div>
+          <div class="field">
+            <label for="jobTitle">Job title <span class="muted">(optional)</span></label>
+            <input id="jobTitle" class="input" type="text" formControlName="jobTitle" placeholder="Finance manager" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" class="input" type="password" formControlName="password" placeholder="At least 8 characters" autocomplete="new-password" />
+          <span class="error-text" *ngIf="form.controls.password.touched && form.controls.password.invalid">
+            Use 8 to 100 characters with at least one letter and one digit.
+          </span>
+        </div>
+
+        <div class="field">
+          <label for="confirmPassword">Confirm password</label>
+          <input id="confirmPassword" class="input" type="password" formControlName="confirmPassword" autocomplete="new-password" />
+          <span class="error-text" *ngIf="form.controls.confirmPassword.touched && form.hasError('mismatch')">
+            The passwords do not match.
+          </span>
+        </div>
+
+        <div class="error-text" *ngIf="error()">{{ error() }}</div>
+
+        <button class="btn btn-primary btn-block" type="submit" [disabled]="loading()" style="margin-top: 8px">
+          {{ loading() ? 'Creating account...' : 'Create account' }}
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        Already registered? <a routerLink="/login">Sign in</a>
+      </div>
+    </div>
+  </section>
+</div>

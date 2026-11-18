@@ -1,0 +1,192 @@
+<div class="content-grid">
+  <div class="toolbar" style="justify-content: space-between">
+    <div>
+      <h2 class="section-title">Extraction templates</h2>
+      <span class="muted">Templates define the fields a document must contain. Values are only filled manually or by a future AI layer.</span>
+    </div>
+    <div class="panel-actions">
+      <button class="btn btn-ghost btn-sm" type="button" (click)="reload()" [disabled]="loading()">
+        <lucide-icon name="refresh-cw" [size]="14"></lucide-icon> Refresh
+      </button>
+      <button class="btn btn-primary btn-sm" type="button" *ngIf="auth.canManageTemplates()" (click)="openCreate()">
+        <lucide-icon name="plus" [size]="14"></lucide-icon> New template
+      </button>
+    </div>
+  </div>
+
+  <div class="error-text" *ngIf="error()">{{ error() }}</div>
+
+  <div class="empty-state" *ngIf="loading()">Loading templates...</div>
+
+  <div class="empty-state" *ngIf="!loading() && !templates().length">
+    <strong>No template yet</strong>
+    Create your first template to standardise the data extracted from your documents.
+  </div>
+
+  <div class="template-grid" *ngIf="!loading() && templates().length">
+    <article class="template-card" *ngFor="let template of templates()">
+      <div class="template-head">
+        <div>
+          <div class="cell-title">{{ template.name }}</div>
+          <div class="cell-sub">{{ template.fieldCount }} field(s) · updated {{ template.updatedAt | date: 'short' }}</div>
+        </div>
+        <span class="badge" [ngClass]="template.active ? 'tone-green' : 'tone-gray'">{{ template.active ? 'Active' : 'Inactive' }}</span>
+      </div>
+
+      <div class="template-meta">
+        <span class="badge tone-blue plain">{{ label(template.category) }}</span>
+        <span class="badge tone-gray plain" *ngFor="let field of template.fields | slice: 0 : 2">{{ label(field.dataType) }}</span>
+        <span class="muted" *ngIf="template.fields.length > 2">+{{ template.fields.length - 2 }} more</span>
+      </div>
+
+      <p class="template-desc">{{ template.description || 'No description provided.' }}</p>
+
+      <div class="template-actions">
+        <button class="btn btn-ghost btn-sm" type="button" (click)="toggleExpanded(template)" [disabled]="!template.fields.length">
+          <lucide-icon name="layers" [size]="13"></lucide-icon>
+          {{ expanded() === template.id ? 'Hide fields' : 'Show fields' }}
+        </button>
+        <div class="panel-actions" *ngIf="auth.canManageTemplates()">
+          <button class="btn btn-ghost btn-sm" type="button" (click)="openEdit(template)">
+            <lucide-icon name="pencil" [size]="13"></lucide-icon> Edit
+          </button>
+          <button class="btn btn-danger btn-sm" type="button" (click)="templateToDelete.set(template)">
+            <lucide-icon name="trash-2" [size]="13"></lucide-icon> Delete
+          </button>
+        </div>
+      </div>
+
+      <div class="template-fields" *ngIf="expanded() === template.id">
+        <table class="table">
+          <thead>
+            <tr><th>#</th><th>Field</th><th>Type</th><th>Required</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let field of template.fields; let index = index">
+              <td>{{ index + 1 }}</td>
+              <td>
+                <div class="cell-title">{{ field.label }}</div>
+                <div class="cell-sub mono">{{ field.name }}</div>
+              </td>
+              <td>{{ label(field.dataType) }}</td>
+              <td>
+                <span class="badge" [ngClass]="field.required ? 'tone-amber' : 'tone-gray'">{{ field.required ? 'Required' : 'Optional' }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </div>
+</div>
+
+<!-- Editor modal -->
+<div class="modal-backdrop" *ngIf="editorOpen()" (click)="closeEditor()">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ editingId() ? 'Edit template' : 'New template' }}</h3>
+      <button class="btn-icon" type="button" (click)="closeEditor()"><lucide-icon name="x" [size]="16"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field">
+          <label for="templateName">Name</label>
+          <input id="templateName" class="input" [value]="formName()" (input)="formName.set($any($event.target).value)" placeholder="e.g. Supplier invoice" maxlength="140" />
+        </div>
+        <div class="field">
+          <label for="templateCategory">Category</label>
+          <select id="templateCategory" class="select" [value]="formCategory()" (change)="onCategoryChange($event)">
+            <option *ngFor="let value of categories" [value]="value">{{ label(value) }}</option>
+          </select>
+        </div>
+        <div class="field wide">
+          <label for="templateDescription">Description</label>
+          <textarea id="templateDescription" class="textarea" [value]="formDescription()" (input)="formDescription.set($any($event.target).value)" placeholder="What kind of documents does this template cover?" maxlength="1000"></textarea>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <label class="checkbox">
+            <input type="checkbox" [checked]="formActive()" (change)="formActive.set(!formActive())" />
+            Template is active
+          </label>
+        </div>
+      </div>
+
+      <div class="editor-fields">
+        <div class="panel-title" style="margin-bottom: 8px">
+          Fields
+          <button class="btn btn-ghost btn-sm" type="button" (click)="addField()">
+            <lucide-icon name="plus" [size]="13"></lucide-icon> Add field
+          </button>
+        </div>
+
+        <div class="empty-state" *ngIf="!formFields().length" style="padding: 18px">
+          No field defined. Add at least one field to make the template usable.
+        </div>
+
+        <div class="field-row" *ngFor="let field of formFields(); let index = index">
+          <div class="field-order">
+            <button class="btn-icon" type="button" title="Move up" [disabled]="index === 0" (click)="moveField(index, -1)">
+              <lucide-icon name="chevron-left" [size]="14" style="transform: rotate(90deg)"></lucide-icon>
+            </button>
+            <button class="btn-icon" type="button" title="Move down" [disabled]="index === formFields().length - 1" (click)="moveField(index, 1)">
+              <lucide-icon name="chevron-right" [size]="14" style="transform: rotate(90deg)"></lucide-icon>
+            </button>
+          </div>
+          <div class="field" style="flex: 1 1 160px">
+            <label>Name</label>
+            <input class="input input-sm mono" [value]="field.name" (input)="updateName(index, $any($event.target).value)" placeholder="invoice_number" maxlength="80" />
+          </div>
+          <div class="field" style="flex: 1 1 160px">
+            <label>Label</label>
+            <input class="input input-sm" [value]="field.label" (input)="updateLabel(index, $any($event.target).value)" placeholder="Invoice number" maxlength="140" />
+          </div>
+          <div class="field" style="flex: 0 1 130px">
+            <label>Type</label>
+            <select class="select input-sm" [value]="field.dataType" (change)="updateType(index, $any($event.target).value)">
+              <option *ngFor="let type of dataTypes" [value]="type">{{ label(type) }}</option>
+            </select>
+          </div>
+          <label class="checkbox" style="align-self: flex-end; padding-bottom: 8px">
+            <input type="checkbox" [checked]="field.required" (change)="toggleRequired(index)" />
+            Required
+          </label>
+          <button class="btn-icon" type="button" title="Remove field" style="align-self: flex-end" (click)="removeField(index)">
+            <lucide-icon name="trash-2" [size]="15"></lucide-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" (click)="closeEditor()">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="saving()" (click)="save()">
+        <lucide-icon name="save" [size]="14"></lucide-icon>
+        {{ saving() ? 'Saving...' : (editingId() ? 'Save changes' : 'Create template') }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete modal -->
+<div class="modal-backdrop" *ngIf="templateToDelete() as target" (click)="templateToDelete.set(null)">
+  <div class="modal" style="max-width: 440px" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Delete template</h3>
+      <button class="btn-icon" type="button" (click)="templateToDelete.set(null)"><lucide-icon name="x" [size]="16"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 12px; margin: 0">
+        Delete <strong>{{ target.name }}</strong>? Documents already linked keep their extracted fields, but the template
+        can no longer be applied to new documents.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" (click)="templateToDelete.set(null)">Cancel</button>
+      <button class="btn btn-danger" type="button" [disabled]="deleting()" (click)="confirmDelete()">
+        {{ deleting() ? 'Deleting...' : 'Delete' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast success" *ngIf="notice()" (click)="notice.set('')">{{ notice() }} <b style="margin-left: auto">×</b></div>

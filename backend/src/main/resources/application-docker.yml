@@ -1,0 +1,30 @@
+# Docker deployment: PostgreSQL, MinIO and RabbitMQ.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/documind}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:documind}
+    password: ${DB_PASSWORD:documind}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:documind}
+    password: ${RABBITMQ_PASSWORD:documind}
+    listener:
+      simple:
+        prefetch: 2
+        default-requeue-rejected: false
+
+documind:
+  storage:
+    provider: MINIO
+    endpoint: ${MINIO_ENDPOINT:http://minio:9000}
+    access-key: ${MINIO_ACCESS_KEY:documind}
+    secret-key: ${MINIO_SECRET_KEY:documind123}
+    bucket: ${MINIO_BUCKET:documind}
+  processing:
+    mode: rabbit
+
+logging:
+  level:
+    com.documind: INFO

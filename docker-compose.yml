@@ -1,0 +1,113 @@
+# DocuMind — infrastructure Docker Compose
+#
+# Usage:
+#   1. copy .env.example to .env and set the secrets
+#   2. docker compose up -d --build
+#
+# Services: PostgreSQL, MinIO (S3), RabbitMQ, Spring Boot API and the Angular
+# frontend served by nginx (which proxies /api to the backend).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: documind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-documind}
+      POSTGRES_USER: ${DB_USERNAME:-documind}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-documind}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    # The upstream minio/minio images were removed from the public registries
+    # (Docker Hub returns 404, quay.io 401). The Bitnami legacy image runs the
+    # same MinIO server and accepts the same MINIO_ROOT_USER/PASSWORD settings.
+    image: ${MINIO_IMAGE:-bitnamilegacy/minio:latest}
+    container_name: documind-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-documind}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-documind123}
+      MINIO_BROWSER: "on"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: documind-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-documind}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-documind}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_CONSOLE_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: documind-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-documind}
+      DB_USERNAME: ${DB_USERNAME:-documind}
+      DB_PASSWORD: ${DB_PASSWORD:-documind}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-documind}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-documind}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-documind}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-documind123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-documind}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required - copy .env.example to .env}
+      DOCUMIND_CORS_ORIGINS: ${DOCUMIND_CORS_ORIGINS:-http://localhost:4200}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: documind-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+
+volumes:
+  postgres-data:
+  minio-data:
+  rabbitmq-data:

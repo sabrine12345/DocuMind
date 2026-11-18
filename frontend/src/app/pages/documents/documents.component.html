@@ -1,0 +1,169 @@
+<div class="content-grid">
+  <article class="panel">
+    <div class="panel-title">
+      Upload documents
+      <span class="muted">PDF, PNG or JPG · 25 MB per file</span>
+    </div>
+    <div class="upload-grid">
+      <label
+        class="dropzone"
+        [class.drag-over]="dragActive()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <input type="file" accept=".pdf,.png,.jpg,.jpeg" multiple (change)="onFilesSelected($event)" />
+        <span class="drop-icon"><lucide-icon name="upload-cloud" [size]="28"></lucide-icon></span>
+        <strong>{{ uploading() ? 'Uploading documents...' : 'Drag & drop files here' }}</strong>
+        <span>or click to browse · multiple files supported</span>
+      </label>
+      <div class="upload-options">
+        <div class="field">
+          <label for="uploadTemplate">Template <span class="muted">(optional)</span></label>
+          <select id="uploadTemplate" class="select" [value]="uploadTemplateId()" (change)="onUploadTemplateChange($event)">
+            <option value="">No template</option>
+            <option *ngFor="let template of templates()" [value]="template.id">{{ template.name }} ({{ template.fieldCount }} fields)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="uploadCategory">Category <span class="muted">(optional)</span></label>
+          <select id="uploadCategory" class="select" [value]="uploadCategory()" (change)="onUploadCategoryChange($event)">
+            <option value="">Detect later</option>
+            <option *ngFor="let value of categories" [value]="value">{{ label(value) }}</option>
+          </select>
+        </div>
+        <p class="helper">
+          Processing starts automatically after upload. Fields are prepared from the selected template once processing completes.
+        </p>
+      </div>
+    </div>
+    <div class="error-text" *ngIf="uploadError()">{{ uploadError() }}</div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-title">
+      Documents
+      <span class="chip">{{ page()?.totalElements ?? 0 }} total</span>
+    </div>
+
+    <div class="toolbar" style="margin-bottom: 12px">
+      <div class="search">
+        <lucide-icon name="search" [size]="15"></lucide-icon>
+        <input class="input" type="search" placeholder="Search by file name or title..." (input)="onSearchInput($event)" />
+      </div>
+      <select class="select" value="" (change)="onStatusChange($event)">
+        <option value="">All statuses</option>
+        <option value="QUEUED">Queued</option>
+        <option value="PROCESSING">Processing</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="FAILED">Failed</option>
+      </select>
+      <select class="select" value="" (change)="onCategoryChange($event)">
+        <option value="">All categories</option>
+        <option *ngFor="let value of categories" [value]="value">{{ label(value) }}</option>
+      </select>
+      <select class="select" [value]="sort() + ':' + direction()" (change)="onSortChange($event)">
+        <option value="uploadedAt:desc">Newest first</option>
+        <option value="uploadedAt:asc">Oldest first</option>
+        <option value="fileName:asc">Name A-Z</option>
+        <option value="fileName:desc">Name Z-A</option>
+        <option value="status:asc">Status</option>
+        <option value="sizeBytes:desc">Largest first</option>
+      </select>
+    </div>
+
+    <div class="error-text" *ngIf="error()">{{ error() }}</div>
+
+    <div class="table-scroll">
+      <table class="table" *ngIf="page()?.content?.length; else emptyDocuments">
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Validation</th>
+            <th>Size</th>
+            <th>Uploaded</th>
+            <th style="text-align: right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let doc of page()?.content">
+            <td>
+              <a [routerLink]="['/documents', doc.id]" class="cell-title">{{ doc.title || doc.fileName }}</a>
+              <div class="cell-sub">{{ doc.fileName }} · v{{ doc.currentVersion }} · {{ doc.pages || 0 }} pages</div>
+            </td>
+            <td>{{ label(doc.category) }}</td>
+            <td>
+              <span class="badge" [ngClass]="statusTone(doc.status)">{{ label(doc.status) }}</span>
+              <div class="progress" *ngIf="doc.status === 'PROCESSING' || doc.status === 'QUEUED'" style="margin-top: 6px">
+                <i [style.width.%]="doc.progress"></i>
+              </div>
+            </td>
+            <td><span class="badge" [ngClass]="validationTone(doc.validationStatus)">{{ label(doc.validationStatus) }}</span></td>
+            <td>{{ size(doc.sizeBytes) }}</td>
+            <td>{{ doc.uploadedAt | date: 'short' }}</td>
+            <td>
+              <div class="actions">
+                <a class="btn-icon" [routerLink]="['/documents', doc.id]" title="Open">
+                  <lucide-icon name="eye" [size]="15"></lucide-icon>
+                </a>
+                <button class="btn-icon" type="button" title="Download" (click)="download(doc)">
+                  <lucide-icon name="download" [size]="15"></lucide-icon>
+                </button>
+                <button class="btn-icon" type="button" title="Delete" *ngIf="auth.canUploadDocuments()" (click)="documentToDelete.set(doc)">
+                  <lucide-icon name="trash-2" [size]="15"></lucide-icon>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #emptyDocuments>
+        <div class="empty-state" *ngIf="!loading()">
+          <strong>No documents found</strong>
+          Upload a file or adjust the filters.
+        </div>
+      </ng-template>
+    </div>
+
+    <div class="pagination" *ngIf="page() as p">
+      <span class="muted">{{ p.totalElements }} documents · page {{ p.page + 1 }} / {{ p.totalPages || 1 }}</span>
+      <div class="page-controls">
+        <select class="select input-sm" [value]="pageSize()" (change)="onPageSizeChange($event)">
+          <option value="10">10 / page</option>
+          <option value="20">20 / page</option>
+          <option value="50">50 / page</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="p.first" (click)="goToPage(p.page - 1)">
+          <lucide-icon name="chevron-left" [size]="14"></lucide-icon>
+          Previous
+        </button>
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="p.last" (click)="goToPage(p.page + 1)">
+          Next
+          <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
+        </button>
+      </div>
+    </div>
+  </article>
+</div>
+
+<div class="modal-backdrop" *ngIf="documentToDelete() as target" (click)="documentToDelete.set(null)">
+  <div class="modal" style="max-width: 440px" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Delete document</h3>
+      <button class="btn-icon" type="button" (click)="documentToDelete.set(null)">
+        <lucide-icon name="x" [size]="16"></lucide-icon>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 12px; margin: 0">
+        Permanently delete <strong>{{ target.fileName }}</strong>? Its versions, extracted fields and validation history will be removed.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" (click)="documentToDelete.set(null)">Cancel</button>
+      <button class="btn btn-danger" type="button" (click)="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>

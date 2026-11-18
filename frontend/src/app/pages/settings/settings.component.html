@@ -1,0 +1,224 @@
+<div class="content-grid">
+  <div class="toolbar" style="justify-content: space-between">
+    <div>
+      <h2 class="section-title">Settings</h2>
+      <span class="muted">Profile, security, workspace configuration and members. Changes are saved by the backend immediately.</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" type="button" (click)="loadWorkspace()" [disabled]="loadingWorkspace()">
+      <lucide-icon name="refresh-cw" [size]="14"></lucide-icon> Refresh workspace
+    </button>
+  </div>
+
+  <div class="error-text" *ngIf="error()">{{ error() }}</div>
+
+  <div class="grid-2">
+    <article class="panel">
+      <div class="panel-title">Account profile</div>
+      <div class="avatar-row" style="margin-bottom: 12px">
+        <div class="avatar">{{ userInitials() }}</div>
+        <div>
+          <div class="cell-title">{{ auth.user()?.email }}</div>
+          <div class="cell-sub">
+            <span class="badge tone-blue plain">{{ label(auth.user()?.globalRole) }}</span>
+            <span class="badge tone-gray plain" *ngIf="roleLabel()">{{ roleLabel() }} in this workspace</span>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fullName">Full name</label>
+        <input id="fullName" class="input" [value]="profileFullName()" (input)="profileFullName.set($any($event.target).value)" maxlength="120" />
+      </div>
+      <div class="field" style="margin-top: 10px">
+        <label for="jobTitle">Job title <span class="muted">(optional)</span></label>
+        <input id="jobTitle" class="input" [value]="profileJobTitle()" (input)="profileJobTitle.set($any($event.target).value)" placeholder="e.g. Finance manager" maxlength="120" />
+      </div>
+      <div class="field" style="margin-top: 10px">
+        <label>Email</label>
+        <input class="input" [value]="auth.user()?.email ?? ''" disabled />
+        <span class="helper">The email address cannot be changed from this screen.</span>
+      </div>
+      <div class="panel-actions" style="justify-content: flex-end; margin-top: 12px">
+        <button class="btn btn-primary btn-sm" type="button" [disabled]="savingProfile()" (click)="saveProfile()">
+          <lucide-icon name="save" [size]="14"></lucide-icon>
+          {{ savingProfile() ? 'Saving...' : 'Save profile' }}
+        </button>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-title">Security</div>
+      <div class="field">
+        <label for="currentPassword">Current password</label>
+        <input id="currentPassword" class="input" type="password" autocomplete="current-password"
+          [value]="currentPassword()" (input)="currentPassword.set($any($event.target).value)" />
+      </div>
+      <div class="field" style="margin-top: 10px">
+        <label for="newPassword">New password</label>
+        <input id="newPassword" class="input" type="password" autocomplete="new-password"
+          [value]="newPassword()" (input)="newPassword.set($any($event.target).value)" />
+        <span class="helper">Between 8 and 100 characters, with at least one letter and one digit.</span>
+      </div>
+      <div class="field" style="margin-top: 10px">
+        <label for="confirmPassword">Confirm new password</label>
+        <input id="confirmPassword" class="input" type="password" autocomplete="new-password"
+          [value]="confirmPassword()" (input)="confirmPassword.set($any($event.target).value)" />
+      </div>
+      <div class="panel-actions" style="justify-content: flex-end; margin-top: 12px">
+        <button class="btn btn-primary btn-sm" type="button" [disabled]="savingPassword()" (click)="changePassword()">
+          <lucide-icon name="key-round" [size]="14"></lucide-icon>
+          {{ savingPassword() ? 'Updating...' : 'Change password' }}
+        </button>
+      </div>
+    </article>
+  </div>
+
+  <div class="grid-2">
+    <article class="panel">
+      <div class="panel-title">
+        Workspace
+        <span class="badge tone-blue plain" *ngIf="workspace() as w">{{ w.slug }}</span>
+      </div>
+
+      <div class="empty-state" *ngIf="loadingWorkspace()">Loading workspace...</div>
+
+      <ng-container *ngIf="!loadingWorkspace()">
+        <ng-container *ngIf="workspace() as w">
+        <div class="field">
+          <label for="workspaceName">Name</label>
+          <input id="workspaceName" class="input" [value]="workspaceName()" (input)="workspaceName.set($any($event.target).value)"
+            [disabled]="!auth.canManageWorkspace()" maxlength="120" />
+        </div>
+        <div class="field" style="margin-top: 10px">
+          <label for="maxUpload">Maximum upload size (MB)</label>
+          <input id="maxUpload" class="input" type="number" min="1" max="100"
+            [value]="maxUploadSizeMb()" (input)="maxUploadSizeMb.set(+$any($event.target).value)"
+            [disabled]="!auth.canManageWorkspace()" />
+        </div>
+        <div class="settings-checks">
+          <label class="checkbox">
+            <input type="checkbox" [checked]="notifyOnUpload()" (change)="notifyOnUpload.set(!notifyOnUpload())" [disabled]="!auth.canManageWorkspace()" />
+            Notify members on upload
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" [checked]="notifyOnValidation()" (change)="notifyOnValidation.set(!notifyOnValidation())" [disabled]="!auth.canManageWorkspace()" />
+            Notify members on validation decision
+          </label>
+        </div>
+        <div class="settings-meta">
+          <div><span class="muted">Storage provider</span><strong>{{ label(w.storageProvider) }}</strong></div>
+          <div><span class="muted">Bucket</span><strong class="mono">{{ w.storageBucket }}</strong></div>
+          <div><span class="muted">Created</span><strong>{{ w.createdAt | date: 'mediumDate' }}</strong></div>
+        </div>
+        <p class="muted" style="font-size: 10.5px; margin: 10px 0 0" *ngIf="!auth.canManageWorkspace()">
+          Only workspace admins can change these settings.
+        </p>
+        <div class="panel-actions" style="justify-content: flex-end; margin-top: 12px" *ngIf="auth.canManageWorkspace()">
+          <button class="btn btn-primary btn-sm" type="button" [disabled]="savingWorkspace()" (click)="saveWorkspace()">
+            <lucide-icon name="save" [size]="14"></lucide-icon>
+            {{ savingWorkspace() ? 'Saving...' : 'Save workspace' }}
+          </button>
+        </div>
+        </ng-container>
+      </ng-container>
+
+      <div class="empty-state" *ngIf="!loadingWorkspace() && !workspace()">
+        No workspace selected. Create one on the right.
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-title">Create a workspace</div>
+      <p class="muted" style="margin-top: 0; font-size: 11.5px">
+        A workspace isolates documents, templates, members and AI usage. You become its owner.
+      </p>
+      <div class="field">
+        <label for="newWorkspace">Workspace name</label>
+        <input id="newWorkspace" class="input" [value]="newWorkspaceName()" (input)="newWorkspaceName.set($any($event.target).value)"
+          placeholder="e.g. Finance department" maxlength="120" />
+      </div>
+      <div class="panel-actions" style="justify-content: flex-end; margin-top: 12px">
+        <button class="btn btn-primary btn-sm" type="button" [disabled]="creatingWorkspace() || !newWorkspaceName().trim()" (click)="createWorkspace()">
+          <lucide-icon name="plus" [size]="14"></lucide-icon>
+          {{ creatingWorkspace() ? 'Creating...' : 'Create workspace' }}
+        </button>
+      </div>
+    </article>
+  </div>
+
+  <article class="panel">
+    <div class="panel-title">
+      Members
+      <span class="chip">{{ members().length }} member(s)</span>
+    </div>
+
+    <div class="members-add" *ngIf="auth.canManageWorkspace()">
+      <div class="field" style="flex: 1 1 220px">
+        <label for="memberEmail">Invite by email</label>
+        <input id="memberEmail" class="input" type="email" [value]="addMemberEmail()" (input)="addMemberEmail.set($any($event.target).value)"
+          placeholder="colleague@company.com" />
+        <span class="helper">The person must already have a DocuMind account.</span>
+      </div>
+      <div class="field" style="flex: 0 1 150px">
+        <label for="memberRole">Role</label>
+        <select id="memberRole" class="select" [value]="addMemberRole()" (change)="addMemberRole.set($any($event.target).value)">
+          <option *ngFor="let role of memberRoles" [value]="role">{{ label(role) }}</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" type="button" [disabled]="addingMember() || !addMemberEmail().trim()" (click)="addMember()">
+        <lucide-icon name="plus" [size]="14"></lucide-icon>
+        {{ addingMember() ? 'Adding...' : 'Add member' }}
+      </button>
+    </div>
+
+    <div class="table-scroll">
+      <table class="table" *ngIf="members().length; else noMembers">
+        <thead>
+          <tr><th>Member</th><th>Role</th><th>Joined</th><th style="text-align: right">Actions</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let member of members()">
+            <td>
+              <div class="avatar-row">
+                <div class="avatar">{{ memberInitials(member) }}</div>
+                <div>
+                  <div class="cell-title">{{ member.fullName }}</div>
+                  <div class="cell-sub">{{ member.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <select class="select input-sm" [value]="memberDraftRole(member)" [disabled]="!canEditMember(member)"
+                (change)="changeMemberRole(member, $event)">
+                <option *ngFor="let role of memberRoles" [value]="role">{{ label(role) }}</option>
+                <option *ngIf="member.role === 'SUPER_ADMIN'" value="SUPER_ADMIN">Super admin</option>
+              </select>
+              <span class="badge tone-blue plain" *ngIf="member.owner">Owner</span>
+            </td>
+            <td>{{ member.joinedAt | date: 'mediumDate' }}</td>
+            <td>
+              <div class="actions">
+                <button class="btn btn-ghost btn-sm" type="button" *ngIf="canEditMember(member) && memberDraftRole(member) !== member.role"
+                  [disabled]="memberBusy() === member.id" (click)="saveMemberRole(member)">
+                  <lucide-icon name="save" [size]="13"></lucide-icon> Save role
+                </button>
+                <button class="btn-icon" type="button" title="Remove member" *ngIf="canEditMember(member)"
+                  [disabled]="memberBusy() === member.id" (click)="removeMember(member)">
+                  <lucide-icon name="trash-2" [size]="15"></lucide-icon>
+                </button>
+                <span class="muted" *ngIf="!canEditMember(member) && !member.owner">-</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noMembers>
+        <div class="empty-state" *ngIf="!loadingWorkspace()">No member found for this workspace.</div>
+      </ng-template>
+    </div>
+    <p class="muted" style="font-size: 10.5px; margin: 10px 0 0" *ngIf="!auth.canManageWorkspace()">
+      Only workspace admins can invite members, change roles or remove them.
+    </p>
+  </article>
+</div>
+
+<div class="toast success" *ngIf="notice()" (click)="notice.set('')">{{ notice() }} <b style="margin-left: auto">×</b></div>

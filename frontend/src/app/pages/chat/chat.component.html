@@ -1,0 +1,43 @@
+<div class="content-grid">
+  <article class="panel chat-panel">
+    <span class="chat-icon"><lucide-icon name="message-square" [size]="26"></lucide-icon></span>
+    <h2>AI chat is not enabled yet</h2>
+    <p class="muted">
+      No AI model is connected in this build, so DocuMind does not send questions and never fabricates an answer.
+      This page will light up once the RAG pipeline is plugged in.
+    </p>
+
+    <div class="chat-columns">
+      <div>
+        <h3>Already available</h3>
+        <ul>
+          <li>Document storage, versioning and preview in {{ workspaceName() }}</li>
+          <li>Processing queue with retry and progress tracking</li>
+          <li>Template-based extraction fields with manual validation</li>
+          <li>Validation workflow with comments and decisions</li>
+          <li>Read-only token and cost monitoring for future AI calls</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Planned for the AI phase</h3>
+        <ul>
+          <li>Embedding and indexing of processed documents</li>
+          <li>Semantic search across the active workspace</li>
+          <li>Answers grounded in documents with source citations</li>
+          <li>Every call recorded as a usage event (tokens and cost)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="chat-input">
+      <input class="input" type="text" placeholder="AI chat will be enabled once the model is connected" disabled />
+      <button class="btn btn-primary" type="button" disabled>
+        <lucide-icon name="sparkles" [size]="14"></lucide-icon> Ask
+      </button>
+    </div>
+    <p class="muted chat-footnote">
+      The input stays disabled on purpose: enabling it without a backend would produce misleading answers.
+      Token and cost tracking is available now on the <a routerLink="/usage">AI Usage</a> page.
+    </p>
+  </article>
+</div>

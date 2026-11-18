@@ -1,0 +1,28 @@
+# Automated tests: in-memory database, deterministic local pipeline.
+spring:
+  datasource:
+    url: jdbc:h2:mem:documind-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+documind:
+  processing:
+    mode: local
+    sweep-enabled: false
+  storage:
+    provider: LOCAL
+    location: ./target/test-storage
+  security:
+    jwt:
+      secret: documind-test-secret-key-with-more-than-32-characters
+
+# The test pipeline is in-process: RabbitMQ is not required.
+management:
+  health:
+    rabbit:
+      enabled: false
+
+logging:
+  level:
+    com.documind: INFO

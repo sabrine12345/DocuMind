@@ -1,0 +1,138 @@
+<div class="content-grid">
+  <div class="toolbar" style="justify-content: space-between">
+    <div>
+      <h2 class="section-title">Workspace overview</h2>
+      <span class="muted">All figures are computed by the backend from your workspace data.</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" (click)="reload()" [disabled]="loading()">
+      <lucide-icon name="refresh-cw" [size]="14"></lucide-icon>
+      {{ loading() ? 'Refreshing...' : 'Refresh' }}
+    </button>
+  </div>
+
+  <div class="error-text" *ngIf="error()">{{ error() }}</div>
+
+  <div class="stat-grid" *ngIf="stats() as s">
+    <article class="stat-card">
+      <span class="stat-icon"><lucide-icon name="files" [size]="18"></lucide-icon></span>
+      <div>
+        <div class="stat-value">{{ s.totalDocuments }}</div>
+        <div class="stat-label">Documents in the workspace</div>
+      </div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon"><lucide-icon name="file-check-2" [size]="18"></lucide-icon></span>
+      <div>
+        <div class="stat-value">{{ s.completedDocuments }}</div>
+        <div class="stat-label">Processed successfully</div>
+      </div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon"><lucide-icon name="list-checks" [size]="18"></lucide-icon></span>
+      <div>
+        <div class="stat-value">{{ s.processingDocuments }}</div>
+        <div class="stat-label">Queued or processing</div>
+      </div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon"><lucide-icon name="shield-check" [size]="18"></lucide-icon></span>
+      <div>
+        <div class="stat-value">{{ s.pendingValidations }}</div>
+        <div class="stat-label">Validations pending</div>
+      </div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon"><lucide-icon name="alert-triangle" [size]="18"></lucide-icon></span>
+      <div>
+        <div class="stat-value">{{ s.failedDocuments }}</div>
+        <div class="stat-label">Failed processing jobs</div>
+      </div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon"><lucide-icon name="hard-drive" [size]="18"></lucide-icon></span>
+      <div>
+        <div class="stat-value">{{ storageLabel() }}</div>
+        <div class="stat-label">Stored document volume</div>
+      </div>
+    </article>
+  </div>
+
+  <div class="grid-2" *ngIf="stats() as s">
+    <article class="panel">
+      <div class="panel-title">
+        Uploads - last 7 days
+        <span class="badge tone-blue plain">{{ s.memberCount }} members</span>
+      </div>
+      <div class="bars">
+        <div class="bar-col" *ngFor="let day of s.uploadsLast7Days">
+          <span class="bar-value">{{ day.uploaded }}</span>
+          <div class="bar" [style.height.%]="barHeight(day.uploaded)"></div>
+          <span class="bar-label">{{ day.date | date: 'EEE d' }}</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-title">
+        Documents by category
+        <span class="badge tone-gray plain">{{ s.templateCount }} templates</span>
+      </div>
+      <div *ngIf="s.categoryBreakdown.length; else noCategories">
+        <div class="hbar-row" *ngFor="let category of s.categoryBreakdown">
+          <span>{{ label(category.category) }}</span>
+          <span class="hbar"><i [style.width.%]="categoryWidth(category.count)"></i></span>
+          <strong>{{ category.count }}</strong>
+        </div>
+      </div>
+      <ng-template #noCategories><div class="empty-state">No categorised documents yet.</div></ng-template>
+    </article>
+  </div>
+
+  <div class="grid-2" *ngIf="stats() as s">
+    <article class="panel">
+      <div class="panel-title">
+        Recent documents
+        <a routerLink="/documents" class="btn btn-ghost btn-sm">Open documents</a>
+      </div>
+      <div class="table-scroll" *ngIf="s.recentDocuments.length; else noDocuments">
+        <table class="table">
+          <thead>
+            <tr><th>File</th><th>Status</th><th>Uploaded</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let document of s.recentDocuments">
+              <td>
+                <a [routerLink]="['/documents', document.id]" class="cell-title">{{ document.fileName }}</a>
+                <div class="cell-sub">{{ label(document.category) }} · {{ document.sizeBytes | number }} B</div>
+              </td>
+              <td>
+                <span class="badge" [ngClass]="{
+                  'tone-amber': document.status === 'QUEUED' || document.status === 'PROCESSING',
+                  'tone-green': document.status === 'COMPLETED',
+                  'tone-red': document.status === 'FAILED'
+                }">{{ label(document.status) }}</span>
+              </td>
+              <td>{{ document.uploadedAt | date: 'short' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noDocuments><div class="empty-state">No documents yet. Upload your first file from the Documents page.</div></ng-template>
+    </article>
+
+    <article class="panel">
+      <div class="panel-title">Recent activity</div>
+      <div *ngIf="s.recentActivity.length; else noActivity" class="activity-list">
+        <div class="activity-item" *ngFor="let log of s.recentActivity">
+          <span class="activity-dot"></span>
+          <div>
+            <strong>{{ label(log.action) }}</strong>
+            <div class="cell-sub">{{ log.actorEmail || 'system' }} · {{ log.createdAt | date: 'short' }}</div>
+            <div class="cell-sub" *ngIf="log.details">{{ log.details }}</div>
+          </div>
+        </div>
+      </div>
+      <ng-template #noActivity><div class="empty-state">No activity recorded yet.</div></ng-template>
+    </article>
+  </div>
+</div>

@@ -1,0 +1,35 @@
+.workspace-picker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 3px 8px;
+  color: #4b5b74;
+  background: #fbfcfe;
+}
+
+.workspace-picker .select {
+  border: 0;
+  background: transparent;
+  min-width: 120px;
+  padding: 5px 4px;
+  font-weight: 600;
+  color: #22324d;
+  box-shadow: none;
+}
+
+.workspace-picker .select:focus {
+  box-shadow: none;
+}
+
+@media (max-width: 560px) {
+  .workspace-picker .select {
+    min-width: 0;
+    max-width: 120px;
+  }
+
+  .top-actions .badge {
+    display: none;
+  }
+}

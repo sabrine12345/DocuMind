@@ -1,0 +1,320 @@
+<div class="content-grid" *ngIf="doc() as d; else loadingBlock">
+  <div class="toolbar" style="justify-content: space-between">
+    <div style="display: flex; gap: 12px; align-items: flex-start; min-width: 0">
+      <a class="btn-icon" routerLink="/documents" title="Back to documents">
+        <lucide-icon name="chevron-left" [size]="17"></lucide-icon>
+      </a>
+      <div style="min-width: 0">
+        <h2 class="section-title" style="overflow-wrap: anywhere">{{ d.title || d.fileName }}</h2>
+        <div class="cell-sub">{{ d.fileName }} · {{ size(d.sizeBytes) }} · {{ d.pages }} pages · uploaded by {{ d.uploadedByName }}</div>
+      </div>
+    </div>
+    <div class="panel-actions">
+      <span class="badge" [ngClass]="statusTone(d.status)">{{ label(d.status) }}</span>
+      <span class="badge" [ngClass]="statusTone(d.validationStatus)">{{ label(d.validationStatus) }}</span>
+      <button class="btn btn-ghost btn-sm" type="button" (click)="download()">
+        <lucide-icon name="download" [size]="14"></lucide-icon> Download
+      </button>
+      <button class="btn btn-danger btn-sm" type="button" *ngIf="auth.canUploadDocuments()" (click)="remove()">
+        <lucide-icon name="trash-2" [size]="14"></lucide-icon> Delete
+      </button>
+    </div>
+  </div>
+
+  <div class="progress" *ngIf="d.status === 'QUEUED' || d.status === 'PROCESSING'" style="height: 8px">
+    <i [style.width.%]="d.progress"></i>
+  </div>
+
+  <div class="tabs">
+    <button class="tab" type="button" [class.active]="activeTab() === 'preview'" (click)="setTab('preview')">Preview</button>
+    <button class="tab" type="button" [class.active]="activeTab() === 'fields'" (click)="setTab('fields')">Data extraction ({{ fields().length }})</button>
+    <button class="tab" type="button" [class.active]="activeTab() === 'versions'" (click)="setTab('versions')">Versions ({{ versions().length }})</button>
+    <button class="tab" type="button" [class.active]="activeTab() === 'validation'" (click)="setTab('validation')">Validation ({{ validations().length }})</button>
+    <button class="tab" type="button" [class.active]="activeTab() === 'details'" (click)="setTab('details')">Details</button>
+  </div>
+
+  <!-- Preview -->
+  <article class="panel" *ngIf="activeTab() === 'preview'">
+    <div class="panel-title">
+      Document preview
+      <div class="panel-actions">
+        <button class="btn btn-ghost btn-sm" type="button" (click)="changeZoom(-0.2)" title="Zoom out">
+          <lucide-icon name="zoom-out" [size]="14"></lucide-icon>
+        </button>
+        <span class="chip">{{ (zoom() * 110).toFixed(0) }}%</span>
+        <button class="btn btn-ghost btn-sm" type="button" (click)="changeZoom(0.2)" title="Zoom in">
+          <lucide-icon name="zoom-in" [size]="14"></lucide-icon>
+        </button>
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="pageNumber() <= 1" (click)="changePage(-1)">
+          <lucide-icon name="chevron-left" [size]="14"></lucide-icon>
+        </button>
+        <span class="chip">{{ pageNumber() }} / {{ totalPages() || 1 }}</span>
+        <button class="btn btn-ghost btn-sm" type="button" [disabled]="pageNumber() >= totalPages()" (click)="changePage(1)">
+          <lucide-icon name="chevron-right" [size]="14"></lucide-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="pdf-stage">
+      <ng-container *ngIf="previewIsPdf(); else imagePreview">
+        <canvas #pdfCanvas></canvas>
+      </ng-container>
+      <ng-template #imagePreview>
+        <img *ngIf="previewUrl() as url" [src]="url" alt="Document preview" style="max-width: 100%; border-radius: 6px" />
+      </ng-template>
+      <div class="empty-state" *ngIf="rendering() && !previewUrl()">Loading preview...</div>
+    </div>
+  </article>
+
+  <!-- Fields -->
+  <article class="panel" *ngIf="activeTab() === 'fields'">
+    <div class="panel-title">
+      Extracted data
+      <div class="panel-actions">
+        <span class="muted" *ngIf="d.templateName">Template: {{ d.templateName }}</span>
+        <button class="btn btn-ghost btn-sm" type="button" *ngIf="auth.canValidate() && fields().length" (click)="validateAllFields()">
+          <lucide-icon name="check" [size]="14"></lucide-icon> Validate all filled
+        </button>
+        <button class="btn btn-ghost btn-sm" type="button" *ngIf="auth.canUploadDocuments() && !fields().length" [disabled]="preparing()" (click)="prepareFields()">
+          <lucide-icon name="layers" [size]="14"></lucide-icon> {{ preparing() ? 'Preparing...' : 'Prepare from template' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="table-scroll" *ngIf="fields().length; else noFields">
+      <table class="table">
+        <thead>
+          <tr><th>Field</th><th>Type</th><th style="min-width: 220px">Value</th><th>Status</th><th style="text-align: right">Actions</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let field of fields(); trackBy: trackField">
+            <td>
+              <div class="cell-title">{{ field.fieldLabel }}</div>
+              <div class="cell-sub">{{ field.fieldName }}</div>
+            </td>
+            <td>{{ label(field.dataType) }}</td>
+            <td>
+              <input
+                class="input input-sm"
+                [value]="fieldDrafts()[field.id] ?? ''"
+                [disabled]="!auth.canUploadDocuments() || d.validationStatus === 'PENDING'"
+                (input)="updateDraft(field.id, $any($event.target).value)"
+                [placeholder]="'Enter ' + field.fieldLabel.toLowerCase()"
+              />
+            </td>
+            <td><span class="badge" [ngClass]="statusTone(field.status)">{{ label(field.status) }}</span></td>
+            <td>
+              <div class="actions">
+                <button class="btn btn-ghost btn-sm" type="button" *ngIf="auth.canUploadDocuments() && d.validationStatus !== 'PENDING'"
+                  [disabled]="savingField() === field.id" (click)="saveField(field)">
+                  <lucide-icon name="save" [size]="13"></lucide-icon> Save
+                </button>
+                <button class="btn btn-sm" type="button" *ngIf="auth.canValidate()"
+                  [class.btn-success]="field.status !== 'VALIDATED'" [class.btn-ghost]="field.status === 'VALIDATED'"
+                  [disabled]="savingField() === field.id" (click)="toggleFieldValidation(field)">
+                  <lucide-icon name="check" [size]="13"></lucide-icon>
+                  {{ field.status === 'VALIDATED' ? 'Reopen' : 'Validate' }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noFields>
+      <div class="empty-state">
+        <strong>No extraction fields yet</strong>
+        Assign a template in the Details tab, then prepare the fields. Values are never generated automatically.
+      </div>
+    </ng-template>
+  </article>
+
+  <!-- Versions -->
+  <article class="panel" *ngIf="activeTab() === 'versions'">
+    <div class="panel-title">
+      Document versions
+      <label class="btn btn-ghost btn-sm" *ngIf="auth.canUploadDocuments()">
+        <lucide-icon name="upload-cloud" [size]="14"></lucide-icon>
+        {{ uploadingVersion() ? 'Uploading...' : 'Upload new version' }}
+        <input type="file" accept=".pdf,.png,.jpg,.jpeg" style="display: none" (change)="uploadVersion($event)" [disabled]="uploadingVersion()" />
+      </label>
+    </div>
+    <div class="table-scroll" *ngIf="versions().length; else noVersions">
+      <table class="table">
+        <thead>
+          <tr><th>Version</th><th>File</th><th>Size</th><th>Checksum</th><th>Uploaded by</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let version of versions()">
+            <td><span class="badge tone-blue plain">v{{ version.versionNumber }}</span></td>
+            <td class="cell-title">{{ version.fileName }}</td>
+            <td>{{ size(version.sizeBytes) }}</td>
+            <td class="mono">{{ (version.checksum || '').slice(0, 16) }}...</td>
+            <td>{{ version.uploadedByName }}</td>
+            <td>{{ version.createdAt | date: 'short' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noVersions><div class="empty-state">No versions recorded.</div></ng-template>
+  </article>
+
+  <!-- Validation -->
+  <article class="panel" *ngIf="activeTab() === 'validation'">
+    <div class="panel-title">
+      Validation workflow
+      <div class="panel-actions">
+        <button class="btn btn-primary btn-sm" type="button"
+          *ngIf="auth.canUploadDocuments() && d.status === 'COMPLETED' && d.validationStatus !== 'PENDING'"
+          (click)="showSubmitModal.set(true)">
+          <lucide-icon name="shield-check" [size]="14"></lucide-icon> Submit for validation
+        </button>
+        <button class="btn btn-success btn-sm" type="button" *ngIf="auth.canValidate() && pendingValidation()" (click)="openDecision('approve')">
+          <lucide-icon name="check" [size]="14"></lucide-icon> Approve
+        </button>
+        <button class="btn btn-danger btn-sm" type="button" *ngIf="auth.canValidate() && pendingValidation()" (click)="openDecision('reject')">
+          <lucide-icon name="x" [size]="14"></lucide-icon> Reject
+        </button>
+      </div>
+    </div>
+
+    <div class="table-scroll" *ngIf="validations().length; else noValidations">
+      <table class="table">
+        <thead>
+          <tr><th>Submitted</th><th>By</th><th>Version</th><th>Status</th><th>Decision</th><th>Comment</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let validation of validations()">
+            <td>{{ validation.submittedAt | date: 'short' }}</td>
+            <td>{{ validation.submittedByName }}</td>
+            <td>v{{ validation.documentVersion }}</td>
+            <td><span class="badge" [ngClass]="statusTone(validation.status)">{{ label(validation.status) }}</span></td>
+            <td>
+              <div>{{ validation.decidedByName || '-' }}</div>
+              <div class="cell-sub" *ngIf="validation.decidedAt">{{ validation.decidedAt | date: 'short' }}</div>
+            </td>
+            <td>{{ validation.decisionComment || '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noValidations>
+      <div class="empty-state">
+        <strong>No validation request yet</strong>
+        Submit the document once processing completed and the required fields are filled.
+      </div>
+    </ng-template>
+  </article>
+
+  <!-- Details -->
+  <article class="panel" *ngIf="activeTab() === 'details'">
+    <div class="panel-title">Metadata</div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="title">Title</label>
+        <input id="title" class="input" [value]="editTitle()" (input)="editTitle.set($any($event.target).value)" [disabled]="!auth.canUploadDocuments()" />
+      </div>
+      <div class="field">
+        <label for="category">Category</label>
+        <select id="category" class="select" [value]="editCategory()" (change)="editCategory.set($any($event.target).value)" [disabled]="!auth.canUploadDocuments()">
+          <option *ngFor="let value of categories" [value]="value">{{ label(value) }}</option>
+        </select>
+      </div>
+      <div class="field wide">
+        <label for="description">Description</label>
+        <textarea id="description" class="textarea" [value]="editDescription()" (input)="editDescription.set($any($event.target).value)" [disabled]="!auth.canUploadDocuments()"></textarea>
+      </div>
+      <div class="field">
+        <label for="template">Template</label>
+        <select id="template" class="select" [value]="editTemplateId()" (change)="editTemplateId.set($any($event.target).value)" [disabled]="!auth.canUploadDocuments()">
+          <option value="">No template</option>
+          <option *ngFor="let template of templates()" [value]="template.id">{{ template.name }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Checksum</label>
+        <div class="mono" style="padding-top: 8px">{{ d.checksum }}</div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-sm" type="button" *ngIf="auth.canUploadDocuments()" [disabled]="savingDetails()" (click)="saveDetails()">
+      <lucide-icon name="save" [size]="14"></lucide-icon> {{ savingDetails() ? 'Saving...' : 'Save changes' }}
+    </button>
+
+    <div class="divider"></div>
+
+    <div class="panel-title">Processing history</div>
+    <div class="table-scroll" *ngIf="jobs().length; else noJobs">
+      <table class="table">
+        <thead>
+          <tr><th>Created</th><th>Status</th><th>Progress</th><th>Attempt</th><th>Worker</th><th>Error</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let job of jobs()">
+            <td>{{ job.createdAt | date: 'short' }}</td>
+            <td><span class="badge" [ngClass]="statusTone(job.status)">{{ label(job.status) }}</span></td>
+            <td>{{ job.progress }}%</td>
+            <td>{{ job.attempt }}</td>
+            <td>{{ job.worker || '-' }}</td>
+            <td>{{ job.errorMessage || '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noJobs><div class="empty-state">No processing job recorded.</div></ng-template>
+  </article>
+</div>
+
+<ng-template #loadingBlock>
+  <div class="empty-state" *ngIf="!error()">Loading document...</div>
+</ng-template>
+
+<div class="toast" *ngIf="error()" (click)="error.set('')">{{ error() }} <b style="margin-left: auto">×</b></div>
+<div class="toast success" *ngIf="notice()" (click)="notice.set('')">{{ notice() }} <b style="margin-left: auto">×</b></div>
+
+<!-- Submit modal -->
+<div class="modal-backdrop" *ngIf="showSubmitModal()" (click)="showSubmitModal.set(false)">
+  <div class="modal" style="max-width: 480px" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Submit for validation</h3>
+      <button class="btn-icon" type="button" (click)="showSubmitModal.set(false)"><lucide-icon name="x" [size]="16"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <p class="muted" style="margin-top: 0">
+        All required template fields must be filled. The validator will see this version (v{{ doc()?.currentVersion }}).
+      </p>
+      <div class="field">
+        <label for="submitComment">Comment <span class="muted">(optional)</span></label>
+        <textarea id="submitComment" class="textarea" [value]="submitComment()" (input)="submitComment.set($any($event.target).value)" placeholder="Add context for the validator..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" (click)="showSubmitModal.set(false)">Cancel</button>
+      <button class="btn btn-primary" type="button" [disabled]="submitting()" (click)="submitValidation()">
+        {{ submitting() ? 'Submitting...' : 'Submit' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Decision modal -->
+<div class="modal-backdrop" *ngIf="decision() as kind" (click)="decision.set(null)">
+  <div class="modal" style="max-width: 480px" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ kind === 'approve' ? 'Approve validation' : 'Reject validation' }}</h3>
+      <button class="btn-icon" type="button" (click)="decision.set(null)"><lucide-icon name="x" [size]="16"></lucide-icon></button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="decisionComment">Comment <span class="muted" *ngIf="kind === 'approve'">(optional)</span></label>
+        <textarea id="decisionComment" class="textarea" [value]="decisionComment()" (input)="decisionComment.set($any($event.target).value)"
+          [placeholder]="kind === 'reject' ? 'A reason is required to reject' : 'Optional approval note'"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" type="button" (click)="decision.set(null)">Cancel</button>
+      <button class="btn" [class.btn-success]="kind === 'approve'" [class.btn-danger]="kind === 'reject'" type="button" [disabled]="deciding()" (click)="confirmDecision()">
+        {{ deciding() ? 'Saving...' : (kind === 'approve' ? 'Approve' : 'Reject') }}
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,152 @@
+:host {
+  display: block;
+}
+
+.segmented {
+  display: inline-flex;
+  background: #eef2f8;
+  border-radius: 9px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.seg-btn {
+  border: 0;
+  background: transparent;
+  color: #52617a;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.seg-btn:hover {
+  color: #174fa9;
+}
+
+.seg-btn.active {
+  background: #fff;
+  color: #174fa9;
+  box-shadow: 0 1px 3px #13294b1f;
+}
+
+.usage-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 44px 24px;
+}
+
+.usage-empty h3 {
+  margin: 6px 0 0;
+  font-size: 16px;
+  color: #1d2b45;
+}
+
+.usage-empty p {
+  max-width: 520px;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.usage-empty-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #e8f0fe;
+  color: #1c55b0;
+}
+
+.usage-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 160px;
+  padding-top: 10px;
+  overflow-x: auto;
+}
+
+.usage-bars.dense {
+  gap: 3px;
+}
+
+.usage-bars.dense .bar-col {
+  flex: 0 0 16px;
+}
+
+.usage-bars .bar-col {
+  flex: 1;
+  min-width: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+}
+
+.usage-bars .bar {
+  width: 100%;
+  max-width: 34px;
+  background: linear-gradient(180deg, #3b7be0, #1b56bb);
+  border-radius: 5px 5px 2px 2px;
+  min-height: 2px;
+}
+
+.usage-bars .bar-value {
+  font-size: 9px;
+  color: #33415c;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.usage-bars .bar-label {
+  font-size: 9px;
+  color: #8b96a8;
+  white-space: nowrap;
+}
+
+.split {
+  display: grid;
+  gap: 6px;
+}
+
+.split-head,
+.split-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: #66758d;
+}
+
+.split-track {
+  display: flex;
+  height: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #eef2f8;
+}
+
+.split-track i {
+  display: block;
+  height: 100%;
+}
+
+.split-prompt {
+  background: #1b56bb;
+}
+
+.split-completion {
+  background: #7aa5e8;
+}
+
+.usage-note {
+  margin: 14px 0 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
